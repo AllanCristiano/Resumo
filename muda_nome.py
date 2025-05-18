@@ -33,10 +33,9 @@ def atualizar_txt_com_novos_arquivos(arquivo_txt_original, arquivo_txt_atualizad
     for reg in registros:
         caminho_pdf, numero_portaria, data_portaria, texto = reg
 
-        # Gere o novo nome a partir dos campos. Exemplo: "portaria_100-2024_22_de_março_de_2024.pdf"
-        novo_num = numero_portaria.replace("/", "-")
-        nova_data = data_portaria.replace(" ", "_")
-        novo_nome = f"portaria_{novo_num}_{nova_data}.pdf"
+        # Gere o novo nome a partir dos campos. Exemplo: "1002024.pdf"
+        novo_num = numero_portaria.replace("/", "")
+        novo_nome = f"{novo_num}.pdf"
 
         # Mantém o mesmo diretório de origem
         diretorio = os.path.dirname(caminho_pdf)

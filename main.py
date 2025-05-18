@@ -86,7 +86,7 @@ def salvar_resultados_em_txt(ocr_results, arquivo_saida="resultado_ocr.txt"):
 
 if __name__ == "__main__":
     # Defina o caminho da pasta onde os PDFs estão armazenados
-    pasta = "/home/allan/Documentos/PDFs"
+    pasta = "caminho/para/sua/pasta"  # Substitua pelo caminho correto
     pdf_arquivos = listar_arquivos_pdf(pasta)
     ocr_results = extract_texts_from_files(pdf_arquivos)
 
