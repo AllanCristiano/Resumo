@@ -47,7 +47,7 @@ def postar(item):
             page.click("text=Add New")
 
             page.wait_for_selector("text=Add New Document", state="visible", timeout=10000)
-            page.fill("#title", f"Portaria nº {item[1]}")
+            page.fill("#title", f"LEI nº {item[1]}")
 
             # FrameLocator para o iframe do TinyMCE
             frame = page.frame_locator('#content_ifr')
