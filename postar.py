@@ -56,7 +56,10 @@ def postar(item):
             frame.locator('body').fill(f"{item[3]}")
 
             # Preenche campo categoria
+            # Seleciona a categoria "portaria"
             page.check('#in-doc_categories-185')
+            # Seleciona a categoria "lei complementar"
+            # page.check('#in-doc_categories-187')
 
             # Editar o campo de data
             page.click('div.misc-pub-curtime a.edit-timestamp')
@@ -187,6 +190,7 @@ def run():
         postar(item)
         postados.append(item[2])
         escrever_log(f"Portaria {item[2]} postada com sucesso apos erros.", "acertos.txt")
+        errados.remove(item[2])
 
 if __name__ == "__main__":
     run()

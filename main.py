@@ -48,8 +48,10 @@ def extract_texts_from_files(pdf_files, lang='por', dpi=300, temp_folder="pages"
 
 # Função para extrair informações relevantes usando expressões regulares
 def extrair_informacoes(texto):
+    # print(texto)
     # Captura todo o conteúdo até a quebra de linha após "PORTARIA N°"
-    padrao_portaria = r"PORTARIA\s+N\.?[º°]\s*([^\r\n]+)"
+    # padrao_portaria = r"PORTARIA\s+N\.?[º°]\s*([^\r\n]+)"
+    padrao_portaria =  r"\bLEI\s+N\.?[º°]\s*(\d+(?:\.\d+)*)" # Captura "LEI N° 1234" ou "LEI N° 1234.5678"  
     # Captura datas no formato "De 26 de janeiro de 2024" ou "26 de janeiro de 2024"
     padrao_data = r"(?:De\s+)?(\d{1,2}\s+de\s+\w+\s+de\s+\d{4})"
 
@@ -60,13 +62,19 @@ def extrair_informacoes(texto):
     data_portaria = match_data.group(1).strip() if match_data else None
 
     texto_depois_data = ""
+    
+    trecho_capturado = ""
     if match_data:
+        # Pega o texto após a data
         posicao_final_data = match_data.end()
-        texto_depois_data = texto[posicao_final_data:].strip()
-        pos_primeiro_ponto = texto_depois_data.find('.')
-        if pos_primeiro_ponto != -1:
-            texto_depois_data = texto_depois_data[:pos_primeiro_ponto + 1].strip()
-
+        resto_texto = texto[posicao_final_data:].strip()
+        # Expressão para pegar o trecho até o primeiro ponto seguido de quebra de linha.
+        # Usa \r?\n para lidar com quebras de linha Unix (\n) e Windows (\r\n).
+        padrao_trecho = r'^(.*?)\.\s*\r?\n'
+        match_trecho = re.search(padrao_trecho, resto_texto, flags=re.DOTALL)
+        if match_trecho:
+            trecho_capturado = match_trecho.group(1).strip()
+    texto_depois_data = trecho_capturado + "."
     return numero_portaria, data_portaria, texto_depois_data
 
 
@@ -86,7 +94,7 @@ def salvar_resultados_em_txt(ocr_results, arquivo_saida="resultado_ocr.txt"):
 
 if __name__ == "__main__":
     # Defina o caminho da pasta onde os PDFs estão armazenados
-    pasta = "caminho/para/sua/pasta"  # Substitua pelo caminho correto
+    pasta = "/home/allan/Documentos/LEI"  # Substitua pelo caminho correto
     pdf_arquivos = listar_arquivos_pdf(pasta)
     ocr_results = extract_texts_from_files(pdf_arquivos)
 
