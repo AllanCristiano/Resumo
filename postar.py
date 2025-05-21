@@ -161,7 +161,6 @@ def parse_portarias(file_path):
     return result_list
 
 postados = []
-errados = []
 
 def escrever_log(mensagem, arquivo):
     with open(arquivo, "a", encoding="utf-8") as f:
