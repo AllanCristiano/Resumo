@@ -31,8 +31,8 @@ def postar(item):
             page.wait_for_selector("#wp-submit", state="visible", timeout=10000)
             
             # Preenche os dados de login
-            page.fill("#user_login", "usuario")
-            page.fill("#user_pass", "senha")
+            page.fill("#user_login", "deniel.diniz@aracaju.se.gov.br")
+            page.fill("#user_pass", "&fXIBXr7PW5(jdeM")
             page.click("#wp-submit")
             
             # Aguarda até que o menu "Documents" esteja visível e clica nele
@@ -97,14 +97,14 @@ def postar(item):
             page.wait_for_selector("#__wp-uploader-id-0 > div.media-frame-toolbar > div > div.media-toolbar-primary.search-form > button", state="visible", timeout=20000)
             page.click("#__wp-uploader-id-0 > div.media-frame-toolbar > div > div.media-toolbar-primary.search-form > button")
             
-            page.click("#publish")
-            page.wait_for_selector("text=Post publicado.", state="visible", timeout=40000)
+            # page.click("#publish")
+            # page.wait_for_selector("text=Post publicado.", state="visible", timeout=40000)
         
             # Mantém o navegador aberto para análise
-            # input("Pressione ENTER para fechar o navegador...")
+            input("Pressione ENTER para fechar o navegador...")
             browser.close()
     except Exception as e:
-        escrever_log(f"Portaria {item[2]} erro na postagem.", "erros.txt")
+        escrever_log(f"Portaria {item[1]} erro na postagem.", "erros.txt")
         errados.append(item[2])
         run()
 
@@ -179,18 +179,11 @@ def run():
         if item[2] in postados:
             continue
         if item[2] in errados:
-            continue
+            portarias.remove(item)
+            portarias.append(item)
         postar(item)
         postados.append(item[2])
         escrever_log(f"Portaria {item[2]} postada com sucesso.", "acertos.txt")
-    
-    for item in errados:
-        if item[2] in postados:
-            continue        
-        postar(item)
-        postados.append(item[2])
-        escrever_log(f"Portaria {item[2]} postada com sucesso apos erros.", "acertos.txt")
-        errados.remove(item[2])
 
 if __name__ == "__main__":
     run()
