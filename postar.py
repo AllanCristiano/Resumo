@@ -18,95 +18,91 @@ MONTH_MAP = {
 }
 
 def postar(item):
-    try:
-        with sync_playwright() as p:
-            # Abre o navegador em modo não headless para visualização
-            browser = p.chromium.launch(headless=False)
-            context = browser.new_context()
-            page = context.new_page()
+    with sync_playwright() as p:
+        # Abre o navegador em modo não headless para visualização
+        browser = p.chromium.launch(headless=False)
+        context = browser.new_context()
+        page = context.new_page()
             
-            # Acessa a página de login
-            page.goto("https://transparencia.aracaju.se.gov.br/prefeitura/wp-admin")
-            # Aguarda até que o botão de login esteja visível
-            page.wait_for_selector("#wp-submit", state="visible", timeout=10000)
+        # Acessa a página de login
+        page.goto("https://transparencia.aracaju.se.gov.br/prefeitura/wp-admin")
+        # Aguarda até que o botão de login esteja visível
+        page.wait_for_selector("#wp-submit", state="visible", timeout=10000)
             
-            # Preenche os dados de login
-            page.fill("#user_login", "deniel.diniz@aracaju.se.gov.br")
-            page.fill("#user_pass", "&fXIBXr7PW5(jdeM")
-            page.click("#wp-submit")
+        # Preenche os dados de login
+        page.fill("#user_login", "usuario")
+        page.fill("#user_pass", "senha")
+        page.click("#wp-submit")
             
-            # Aguarda até que o menu "Documents" esteja visível e clica nele
-            selector_documents = "a[href='edit.php?post_type=dlp_document']"
-            page.wait_for_selector(selector_documents, state="visible", timeout=10000)
-            page.click(selector_documents)
+        # Aguarda até que o menu "Documents" esteja visível e clica nele
+        selector_documents = "a[href='edit.php?post_type=dlp_document']"
+        page.wait_for_selector(selector_documents, state="visible", timeout=10000)
+        page.click(selector_documents)
             
-            # aguarda um pouco para garantir que o DOM seja atualizado
-            page.wait_for_timeout(2000)
+        # aguarda um pouco para garantir que o DOM seja atualizado
+        page.wait_for_timeout(2000)
             
-            page.wait_for_selector("text=Add New", state="visible", timeout=40000)
-            page.click("text=Add New")
+        page.wait_for_selector("text=Add New", state="visible", timeout=40000)
+        page.click("text=Add New")
 
-            page.wait_for_selector("text=Add New Document", state="visible", timeout=10000)
-            page.fill("#title", f"LEI nº {item[1]}")
+        page.wait_for_selector("text=Add New Document", state="visible", timeout=10000)
+        page.fill("#title", f"LEI nº {item[1]}")
 
-            # FrameLocator para o iframe do TinyMCE
-            frame = page.frame_locator('#content_ifr')
+        # FrameLocator para o iframe do TinyMCE
+        frame = page.frame_locator('#content_ifr')
 
-            # Preenche texto simples
-            frame.locator('body').fill(f"{item[3]}")
+        # Preenche texto simples
+        frame.locator('body').fill(f"{item[3]}")
 
-            # Preenche campo categoria
-            # Seleciona a categoria "portaria"
-            page.check('#in-doc_categories-185')
-            # Seleciona a categoria "lei complementar"
-            # page.check('#in-doc_categories-187')
+        # Preenche campo categoria
+        # Seleciona a categoria "portaria"
+        page.check('#in-doc_categories-185')
+        # Seleciona a categoria "lei complementar"
+        # page.check('#in-doc_categories-187')
 
-            # Editar o campo de data
-            page.click('div.misc-pub-curtime a.edit-timestamp')
-            page.wait_for_selector('#timestampdiv', state='visible')
+        # Editar o campo de data
+        page.click('div.misc-pub-curtime a.edit-timestamp')
+        page.wait_for_selector('#timestampdiv', state='visible')
 
-            # Preencha os campos de data/hora:
-            page.fill('input#jj', f'{item[2][0]}')              # Dia: 20
-            page.select_option('select#mm', f'{int(item[2][1]):02d}')    # Mês: maio (value="05")
-            page.fill('input#aa', f'{item[2][2]}')            # Ano: 2024
-            page.fill('input#hh', '14')              # Hora: 14h
-            page.fill('input#mn', '30')              # Minuto: 30
+        # Preencha os campos de data/hora:
+        page.fill('input#jj', f'{item[2][0]}')              # Dia: 20
+        page.select_option('select#mm', f'{int(item[2][1]):02d}')    # Mês: maio (value="05")
+        page.fill('input#aa', f'{item[2][2]}')            # Ano: 2024
+        page.fill('input#hh', '14')              # Hora: 14h
+        page.fill('input#mn', '30')              # Minuto: 30
 
-            page.click("#timestampdiv > p > a.save-timestamp.hide-if-no-js.button")
+        page.click("#timestampdiv > p > a.save-timestamp.hide-if-no-js.button")
 
-            # upload do arquivo
-            # Seleciona a opção de upload
-            page.select_option('#dlw_document_link_type', 'file')
-            page.wait_for_selector("#dlw_add_file_button", state="visible")
-            page.click("#dlw_add_file_button")
-            # Aguarda o seletor do input de upload ficar visível
-            page.wait_for_selector("#media-search-input", state="visible")
-            # Preenche o campo de upload
-            nome_arquivo = item[1].replace("/", "") + ".pdf"
-            # pesquisar o arquivo
-            page.fill("#media-search-input", f"{nome_arquivo}")
+        # upload do arquivo
+        # Seleciona a opção de upload
+        page.select_option('#dlw_document_link_type', 'file')
+        page.wait_for_selector("#dlw_add_file_button", state="visible")
+        page.click("#dlw_add_file_button")
+        # Aguarda o seletor do input de upload ficar visível
+        page.wait_for_selector("#media-search-input", state="visible")
+        # Preenche o campo de upload
+        nome_arquivo = item[1].replace("/", "") + ".pdf"
+        # pesquisar o arquivo
+        page.fill("#media-search-input", f"{nome_arquivo}")
 
-            # aguarda um pouco para garantir que o DOM seja atualizado
-            page.wait_for_timeout(16000)
-            # Aguarda o arquivo aparecer na lista de resultados        
-            page.wait_for_selector(f'ul#__attachments-view-48 li:has-text("{nome_arquivo}")', state="visible", timeout=20000)
-            # seleciona o arquivo
-            page.click(f'ul#__attachments-view-48 li:has-text("{nome_arquivo}")')
+        # aguarda um pouco para garantir que o DOM seja atualizado
+        page.wait_for_timeout(16000)
+        # Aguarda o arquivo aparecer na lista de resultados        
+        page.wait_for_selector(f'ul#__attachments-view-48 li:has-text("{nome_arquivo}")', state="visible", timeout=20000)
+        # seleciona o arquivo
+        page.click(f'ul#__attachments-view-48 li:has-text("{nome_arquivo}")')
 
-            # Aguarda o botão de "Adicionar" ficar visível e clica nele
-            page.wait_for_selector("#__wp-uploader-id-0 > div.media-frame-toolbar > div > div.media-toolbar-primary.search-form > button", state="visible", timeout=20000)
-            page.click("#__wp-uploader-id-0 > div.media-frame-toolbar > div > div.media-toolbar-primary.search-form > button")
+        # Aguarda o botão de "Adicionar" ficar visível e clica nele
+        page.wait_for_selector("#__wp-uploader-id-0 > div.media-frame-toolbar > div > div.media-toolbar-primary.search-form > button", state="visible", timeout=20000)
+        page.click("#__wp-uploader-id-0 > div.media-frame-toolbar > div > div.media-toolbar-primary.search-form > button")
             
-            # page.click("#publish")
-            # page.wait_for_selector("text=Post publicado.", state="visible", timeout=40000)
+        # page.click("#publish")
+        # page.wait_for_selector("text=Post publicado.", state="visible", timeout=40000)
         
-            # Mantém o navegador aberto para análise
-            input("Pressione ENTER para fechar o navegador...")
-            browser.close()
-    except Exception as e:
-        escrever_log(f"Portaria {item[1]} erro na postagem.", "erros.txt")
-        errados.append(item[2])
-        run()
+        # Mantém o navegador aberto para análise
+        input("Pressione ENTER para fechar o navegador...")
+        browser.close()
+    
 
 def parse_portarias(file_path):
     """
@@ -176,14 +172,17 @@ def run():
     portarias = parse_portarias(file_path)
     
     for item in portarias:
-        if item[2] in postados:
+        if item[1] in postados:
             continue
-        if item[2] in errados:
+        try:
+            postar(item)
+            postados.append(item[1])
+            escrever_log(f"Portaria {item[1]} postada com sucesso.", "acertos.txt")
+        except Exception as e:
             portarias.remove(item)
             portarias.append(item)
-        postar(item)
-        postados.append(item[2])
-        escrever_log(f"Portaria {item[2]} postada com sucesso.", "acertos.txt")
+            escrever_log(f"Portaria {item[1]} erro na postagem.", "erros.txt")
+            run()
 
 if __name__ == "__main__":
     run()
