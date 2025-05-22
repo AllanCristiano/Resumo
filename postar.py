@@ -169,19 +169,23 @@ def escrever_log(mensagem, arquivo):
 def run():
     file_path = 'resultado_ocr_atualizado.txt'
     portarias = parse_portarias(file_path)
-    
-    for item in portarias:
+    i = 0
+
+    while i < len(portarias):
+        item = portarias[i]
         if item[1] in postados:
+            i += 1
             continue
         try:
             postar(item)
             postados.append(item[1])
             escrever_log(f"Portaria {item[1]} postada com sucesso.", "acertos.txt")
+            i += 1
         except Exception as e:
-            portarias.remove(item)
-            portarias.append(item)
-            escrever_log(f"Portaria {item[1]} erro na postagem.", "erros.txt")
-            run()
+            escrever_log(f"Portaria {item[1]} erro na postagem: {str(e)}", "erros.txt")
+            # move para o final da lista
+            portarias.append(portarias.pop(i))
+            # não incrementa i para tentar o próximo que veio para essa posição
 
 if __name__ == "__main__":
     run()
