@@ -1,10 +1,16 @@
 import os
 import re
+import nltk
+from nltk.tokenize import word_tokenize
 from pdf2image import convert_from_path
 import pytesseract
 from PIL import Image
 
-# Configuração do TESSDATA_PREFIX (localiza onde estão os arquivos .traineddata do Tesseract)
+# Certifica-se de que os recursos necessários do NLTK estão disponíveis
+nltk.download('punkt')
+nltk.download('stopwords')
+
+# Configuração do TESSDATA_PREFIX
 for cand in [
     "/usr/share/tesseract-ocr/4.00/tessdata",
     "/usr/share/tesseract-ocr/tessdata",
@@ -14,8 +20,7 @@ for cand in [
         os.environ["TESSDATA_PREFIX"] = cand
         break
 
-
-# Função para listar arquivos PDF em um diretório (busca recursiva)
+# Função para listar arquivos PDF em um diretório
 def listar_arquivos_pdf(diretorio):
     pdf_files = []
     for raiz, _, arquivos in os.walk(diretorio):
@@ -25,108 +30,142 @@ def listar_arquivos_pdf(diretorio):
                 pdf_files.append(caminho_completo)
     return pdf_files
 
-
-# Função para converter o PDF em imagens e extrair o texto via OCR
-def extract_texts_from_files(pdf_files, lang='por', dpi=300, temp_folder="pages"):
+# Função para converter PDF em imagens e extrair texto via OCR
+def extract_texts_from_files(pdf_files, lang='por', dpi=600, temp_folder="pages"):
     os.makedirs(temp_folder, exist_ok=True)
     results = []
-
-    for pdf_path in pdf_files:
-        print(f"Processando: {pdf_path}")
+    for idx, pdf_path in enumerate(pdf_files, start=1):
+        print(f"{idx}/{len(pdf_files)} - Processando: {pdf_path}")
         all_text = []
         pages = convert_from_path(pdf_path, dpi=dpi, fmt='jpeg', output_folder=temp_folder, paths_only=True)
-        for idx, img_path in enumerate(pages, start=1):
+        for i, img_path in enumerate(pages, start=1):
             txt = pytesseract.image_to_string(Image.open(img_path), lang=lang)
-            all_text.append(f"--- Página {idx} ---\n{txt}")
-            print(f"[OK] {os.path.basename(pdf_path)} - página {idx} processada")
+            all_text.append(f"--- Página {i} ---\n{txt}")
+            print(f"[OK] {os.path.basename(pdf_path)} - página {i} processada")
         full_text = "\n".join(all_text)
         results.append({'filename': pdf_path, 'text': full_text})
-
     print(f"\n✅ OCR completo — processados {len(results)} arquivos")
     return results
 
+# Função para formatar a data no padrão YYYY-MM-DD
+def formatar_data(data_portaria):
+    meses = {
+        "janeiro": "01", "fevereiro": "02", "março": "03", "abril": "04",
+        "maio": "05", "junho": "06", "julho": "07", "agosto": "08",
+        "setembro": "09", "outubro": "10", "novembro": "11", "dezembro": "12"
+    }
+    
+    if not data_portaria:
+        return "0000-00-00"
 
-# Função para extrair informações relevantes usando expressões regulares
+    match = re.search(r"(\d{1,2})\s+de\s+(\w+)\s+de\s+(\d{4})", data_portaria, flags=re.IGNORECASE)
+    if match:
+        dia, mes_texto, ano = match.groups()
+        mes = meses.get(mes_texto.lower(), "00")
+        return f"{ano}-{mes}-{dia.zfill(2)}"
+    
+    return "0000-00-00"
+
+# Função para extrair informações e capturar as 20 primeiras palavras após a data
 def extrair_informacoes(texto):
-    # print(texto)
-    # Captura todo o conteúdo até a quebra de linha após "PORTARIA N°"
-    # padrao_portaria = r"PORTARIA\s+N\.?[º°]\s*([^\r\n]+)"
-    padrao_portaria =  r"\bLEI\s+N\.?[º°]\s*(\d+(?:\.\d+)*)" # Captura "LEI N° 1234" ou "LEI N° 1234.5678"  
-    # Captura datas no formato "De 26 de janeiro de 2024" ou "26 de janeiro de 2024"
-    padrao_data = r"(?:De\s+)?(\d{1,2}\s+de\s+\w+\s+de\s+\d{4})"
-
+    padrao_portaria = r"PORTARIA\s+N\.?[º°]\s*([^\r\n]+)"
     match_portaria = re.search(padrao_portaria, texto, flags=re.IGNORECASE)
     numero_portaria = match_portaria.group(1).strip() if match_portaria else None
 
+    padrao_data = r"(?:De\s+)?(\d{1,2}\s+de\s+\w+\s+de\s+\d{4})"
     match_data = re.search(padrao_data, texto, flags=re.IGNORECASE)
     data_portaria = match_data.group(1).strip() if match_data else None
 
-    texto_depois_data = ""
-    
-    trecho_capturado = ""
+    trecho_capturado = "Resumo não disponível"
     if match_data:
-        # Pega o texto após a data
         posicao_final_data = match_data.end()
         resto_texto = texto[posicao_final_data:].strip()
-        # Expressão para pegar o trecho até o primeiro ponto seguido de quebra de linha.
-        # Usa \r?\n para lidar com quebras de linha Unix (\n) e Windows (\r\n).
-        padrao_trecho = r'^(.*?)\.\s*\r?\n'
-        match_trecho = re.search(padrao_trecho, resto_texto, flags=re.DOTALL)
-        if match_trecho:
-            trecho_capturado = match_trecho.group(1).strip()
-    texto_depois_data = trecho_capturado + "."
-    return numero_portaria, data_portaria, texto_depois_data
+        palavras = word_tokenize(resto_texto, language='portuguese')
+        if palavras:
+            trecho_capturado = " ".join(palavras[:20])  # Captura as 20 primeiras palavras após a data
 
+    # Verificação para evitar erro
+    data_formatada = formatar_data(data_portaria) if data_portaria else "0000-00-00"
 
-# Função para salvar os resultados em um arquivo .txt
-def salvar_resultados_em_txt(ocr_results, arquivo_saida="resultado_ocr.txt"):
+    return numero_portaria, data_formatada, trecho_capturado
+
+# Função para renomear os arquivos PDF
+def renomear_arquivo(original_path, numero_portaria, data_portaria):
+    if numero_portaria and data_portaria != "0000-00-00":
+        # Remove caracteres inválidos do número da portaria
+        numero_portaria = re.sub(r'[^0-9A-Za-z]', '', numero_portaria)
+        novo_nome = f"{numero_portaria}-{data_portaria}.pdf"
+        novo_caminho = os.path.join(os.path.dirname(original_path), novo_nome)
+        if os.path.exists(original_path):
+            try:
+                os.rename(original_path, novo_caminho)
+                print(f"✅ Arquivo renomeado: {os.path.basename(original_path)} → {novo_nome}")
+                return novo_caminho
+            except Exception as e:
+                print(f"⚠️ Erro ao renomear arquivo {original_path}: {e}")
+        else:
+            print(f"⚠️ Arquivo não encontrado: {original_path}")
+    return original_path
+
+# Função para salvar os resultados em TXT
+def salvar_resultados_em_txt(ocr_results, arquivo_saida):
     with open(arquivo_saida, "w", encoding="utf-8") as f:
-        for ocr_result in ocr_results:
+        for result in ocr_results:
             f.write("=" * 50 + "\n")
-            f.write(f"Arquivo: {ocr_result['filename']}\n")
-            f.write(f"Número da Portaria: {ocr_result.get('numero_portaria', 'N/A')}\n")
-            f.write(f"Data da Portaria: {ocr_result.get('data_portaria', 'N/A')}\n")
+            f.write(f"Arquivo: {result['filename']}\n")
+            f.write(f"Número documento: {result.get('numero_portaria', 'N/A')}\n")
+            f.write(f"Data: {result.get('data_portaria', '0000-00-00')}\n")
+            f.write(f"Trecho capturado: {result.get('trecho_capturado', 'Resumo não disponível')}\n")
             f.write("\n")
-            f.write(ocr_result['texto'] + "\n\n")
+    print(f"\n✅ Dados salvos em '{arquivo_saida}'.")
 
-    print(f"\n✅ Dados salvos em '{arquivo_saida}'")
-
+# Função para criar uma nova pasta e mover os arquivos renomeados para ela
+def mover_arquivos_para_pasta(arquivos, destino):
+    os.makedirs(destino, exist_ok=True)  # Cria a pasta se não existir
+    for arquivo in arquivos:
+        caminho_atual = arquivo['filename']
+        novo_caminho = os.path.join(destino, os.path.basename(caminho_atual))
+        try:
+            os.rename(caminho_atual, novo_caminho)
+            print(f"✅ Arquivo movido: {os.path.basename(caminho_atual)} → {novo_caminho}")
+            # Atualiza o caminho do arquivo no dicionário
+            arquivo['filename'] = novo_caminho
+        except Exception as e:
+            print(f"⚠️ Erro ao mover arquivo {caminho_atual}: {e}")
 
 if __name__ == "__main__":
-    # Defina o caminho da pasta onde os PDFs estão armazenados
-    pasta = "/home/allan/Documentos/LEI"  # Substitua pelo caminho correto
-    pdf_arquivos = listar_arquivos_pdf(pasta)
+    # Diretório de origem contendo os PDFs
+    diretorio_origem = "/home/allan/Documentos/arquivos/Leis Complementares"
+    # Diretório de destino para os arquivos renomeados
+    pasta_destino = "/home/allan/Documentos/arquivos/leis_complementares_renomeadas"
+    
+    pdf_arquivos = listar_arquivos_pdf(diretorio_origem)
     ocr_results = extract_texts_from_files(pdf_arquivos)
 
-    # Dicionários para tratar portarias duplicadas
-    portarias_existentes = {}
-    portarias_indices = {}
+    ocr_results_valid = []
+    ocr_results_missing = []
 
-    # Extração de informações de cada OCR
-    for idx, ocr_result in enumerate(ocr_results):
-        numero_portaria, data_portaria, texto_depois_data = extrair_informacoes(ocr_result['text'])
-
-        if numero_portaria in portarias_existentes:
-            count = portarias_existentes[numero_portaria] + 1
-            portarias_existentes[numero_portaria] = count
-
-            if count == 2:
-                # Primeira duplicata: atualiza a ocorrência original para ter o sufixo "-1"
-                idx_primeira = portarias_indices[numero_portaria]
-                ocr_results[idx_primeira]['numero_portaria'] = f"{numero_portaria}-1"
-
-            # Atualiza para a ocorrência atual
-            numero_portaria = f"{numero_portaria}-{count}"
+    for ocr_result in ocr_results:
+        numero_portaria, data_formatada, trecho_capturado = extrair_informacoes(ocr_result['text'])
+        # Verifica se a data extraída está dentro do intervalo desejado (2022 a 2025)
+        ano_extraido = int(data_formatada.split("-")[0]) if data_formatada != "0000-00-00" else 0
+        if not numero_portaria or data_formatada == "0000-00-00" or not (2022 <= ano_extraido <= 2025):
+            ocr_result.update({'numero_portaria': numero_portaria or "N/A",
+                               'data_portaria': data_formatada,
+                               'trecho_capturado': trecho_capturado})
+            ocr_results_missing.append(ocr_result)
         else:
-            portarias_existentes[numero_portaria] = 1
-            portarias_indices[numero_portaria] = idx
+            novo_caminho = renomear_arquivo(ocr_result['filename'], numero_portaria, data_formatada)
+            ocr_result.update({'filename': novo_caminho,
+                               'numero_portaria': numero_portaria, 
+                               'data_portaria': data_formatada,
+                               'trecho_capturado': trecho_capturado})
+            ocr_results_valid.append(ocr_result)
 
-        ocr_result['numero_portaria'] = numero_portaria
-        ocr_result['data_portaria'] = data_portaria
-        ocr_result['texto'] = texto_depois_data
+    salvar_resultados_em_txt(ocr_results_valid, "resultado_ocr.txt")
+    salvar_resultados_em_txt(ocr_results_missing, "resultado_ocr_missing.txt")
 
-    # Ordena os resultados em ordem crescente com base no número da portaria
-    ocr_results_ordenados = sorted(ocr_results, key=lambda x: x.get('numero_portaria') or "")
+    # Cria a pasta de destino e move os arquivos renomeados
+    mover_arquivos_para_pasta(ocr_results_valid, pasta_destino)
 
-    # Salva os resultados ordenados em um arquivo .txt
-    salvar_resultados_em_txt(ocr_results_ordenados)
+    print("\n✅ Processamento concluído!")
